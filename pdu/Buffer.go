@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-
-	"github.com/linxGnu/gosmpp/data"
+	"github.com/linxGnu/gosmpp/coding"
 )
 
 const (
@@ -94,7 +93,7 @@ func (c *ByteBuffer) WriteBuffer(d *ByteBuffer) {
 	}
 }
 
-func (c *ByteBuffer) writeString(st string, isCString bool, enc data.Encoding) (err error) {
+func (c *ByteBuffer) writeString(st string, isCString bool, enc coding.Encoding) (err error) {
 	if len(st) > 0 {
 		var payload []byte
 		if payload, err = enc.Encode(st); err == nil {
@@ -111,11 +110,11 @@ func (c *ByteBuffer) writeString(st string, isCString bool, enc data.Encoding) (
 
 // WriteCString writes c-string.
 func (c *ByteBuffer) WriteCString(s string) error {
-	return c.writeString(s, true, data.ASCII)
+	return c.writeString(s, true, coding.ASCII)
 }
 
 // WriteCStringWithEnc write c-string with encoding.
-func (c *ByteBuffer) WriteCStringWithEnc(s string, enc data.Encoding) error {
+func (c *ByteBuffer) WriteCStringWithEnc(s string, enc coding.Encoding) error {
 	return c.writeString(s, true, enc)
 }
 

@@ -1,6 +1,8 @@
 package pdu
 
 import (
+	"github.com/linxGnu/gosmpp/coding"
+	"github.com/linxGnu/gosmpp/coding/gsm7bit"
 	"sync/atomic"
 
 	"github.com/linxGnu/gosmpp/data"
@@ -15,7 +17,7 @@ var (
 type ShortMessage struct {
 	SmDefaultMsgID    byte
 	message           string
-	enc               data.Encoding
+	enc               coding.Encoding
 	udHeader          UDH
 	messageData       []byte
 	withoutDataCoding bool // purpose of ReplaceSM usage
@@ -23,35 +25,35 @@ type ShortMessage struct {
 
 // NewShortMessage returns new ShortMessage.
 func NewShortMessage(message string) (s ShortMessage, err error) {
-	err = s.SetMessageWithEncoding(message, data.GSM7BIT)
+	err = s.SetMessageWithEncoding(message, coding.GSM7BIT)
 	return
 }
 
 // NewShortMessageWithEncoding returns new ShortMessage with predefined encoding.
-func NewShortMessageWithEncoding(message string, enc data.Encoding) (s ShortMessage, err error) {
+func NewShortMessageWithEncoding(message string, enc coding.Encoding) (s ShortMessage, err error) {
 	err = s.SetMessageWithEncoding(message, enc)
 	return
 }
 
 // NewBinaryShortMessage returns new ShortMessage.
 func NewBinaryShortMessage(messageData []byte) (s ShortMessage, err error) {
-	err = s.SetMessageDataWithEncoding(messageData, data.BINARY8BIT2)
+	err = s.SetMessageDataWithEncoding(messageData, coding.BINARY8BIT2)
 	return
 }
 
 // NewBinaryShortMessageWithEncoding returns new ShortMessage with predefined encoding.
-func NewBinaryShortMessageWithEncoding(messageData []byte, enc data.Encoding) (s ShortMessage, err error) {
+func NewBinaryShortMessageWithEncoding(messageData []byte, enc coding.Encoding) (s ShortMessage, err error) {
 	err = s.SetMessageDataWithEncoding(messageData, enc)
 	return
 }
 
 // NewLongMessage returns long message splitted into multiple short message
 func NewLongMessage(message string) (s []*ShortMessage, err error) {
-	return NewLongMessageWithEncoding(message, data.GSM7BIT)
+	return NewLongMessageWithEncoding(message, coding.GSM7BIT)
 }
 
 // NewLongMessageWithEncoding returns long message splitted into multiple short message with encoding of choice
-func NewLongMessageWithEncoding(message string, enc data.Encoding) (s []*ShortMessage, err error) {
+func NewLongMessageWithEncoding(message string, enc coding.Encoding) (s []*ShortMessage, err error) {
 	sm := &ShortMessage{
 		message: message,
 		enc:     enc,
@@ -60,7 +62,7 @@ func NewLongMessageWithEncoding(message string, enc data.Encoding) (s []*ShortMe
 }
 
 // SetMessageWithEncoding sets message with encoding.
-func (c *ShortMessage) SetMessageWithEncoding(message string, enc data.Encoding) (err error) {
+func (c *ShortMessage) SetMessageWithEncoding(message string, enc coding.Encoding) (err error) {
 	if c.messageData, err = enc.Encode(message); err == nil {
 		if len(c.messageData) > data.SM_MSG_LEN {
 			err = errors.ErrShortMessageLengthTooLarge
@@ -74,7 +76,7 @@ func (c *ShortMessage) SetMessageWithEncoding(message string, enc data.Encoding)
 
 // SetLongMessageWithEnc sets ShortMessage with message longer than  256 bytes
 // callers are expected to call Split() after this
-func (c *ShortMessage) SetLongMessageWithEnc(message string, enc data.Encoding) (err error) {
+func (c *ShortMessage) SetLongMessageWithEnc(message string, enc coding.Encoding) (err error) {
 	c.message = message
 	c.enc = enc
 	return
@@ -92,7 +94,7 @@ func (c *ShortMessage) SetUDH(udh UDH) {
 }
 
 // SetMessageDataWithEncoding sets underlying raw data which is used for pdu marshalling.
-func (c *ShortMessage) SetMessageDataWithEncoding(d []byte, enc data.Encoding) (err error) {
+func (c *ShortMessage) SetMessageDataWithEncoding(d []byte, enc coding.Encoding) (err error) {
 	if len(d) > data.SM_MSG_LEN {
 		err = errors.ErrShortMessageLengthTooLarge
 	} else {
@@ -111,14 +113,14 @@ func (c *ShortMessage) GetMessageData() (d []byte, err error) {
 func (c *ShortMessage) GetMessage() (st string, err error) {
 	enc := c.enc
 	if enc == nil {
-		enc = data.GSM7BIT
+		enc = coding.GSM7BIT
 	}
 	st, err = c.GetMessageWithEncoding(enc)
 	return
 }
 
 // GetMessageWithEncoding returns (decoded) underlying message.
-func (c *ShortMessage) GetMessageWithEncoding(enc data.Encoding) (st string, err error) {
+func (c *ShortMessage) GetMessageWithEncoding(enc coding.Encoding) (st string, err error) {
 	if len(c.messageData) > 0 {
 		st, err = enc.Decode(c.messageData)
 	}
@@ -131,15 +133,15 @@ func (c *ShortMessage) GetMessageWithEncoding(enc data.Encoding) (st string, err
 // NOTE: split() will return array of length 1 if data length is still within the limit
 // The encoding interface can implement the data.Splitter interface for ad-hoc splitting rule
 func (c *ShortMessage) split() (multiSM []*ShortMessage, err error) {
-	var encoding data.Encoding
+	var encoding coding.Encoding
 	if c.enc == nil {
-		encoding = data.GSM7BIT
+		encoding = coding.GSM7BIT
 	} else {
 		encoding = c.enc
 	}
 
 	// check if encoding implements data.Splitter
-	splitter, ok := encoding.(data.Splitter)
+	splitter, ok := encoding.(coding.Splitter)
 	// check if encoding implements data.Splitter or split is necessary
 	if !ok || !splitter.ShouldSplit(c.message, data.SM_GSM_MSG_LEN) {
 		err = c.SetMessageWithEncoding(c.message, c.enc)
@@ -190,7 +192,7 @@ func (c *ShortMessage) Marshal(b *ByteBuffer) {
 
 	var coding byte
 	if c.enc == nil {
-		coding = data.GSM7BITCoding
+		coding = gsm7bit.GSM7BITCoding
 	} else {
 		coding = c.enc.DataCoding()
 	}
@@ -236,7 +238,7 @@ func (c *ShortMessage) Unmarshal(b *ByteBuffer, udhi bool) (err error) {
 	if c.messageData, err = b.ReadN(int(n)); err != nil {
 		return
 	}
-	c.enc = data.FromDataCoding(dataCoding)
+	c.enc = coding.FromDataCoding(dataCoding)
 
 	// If short message length is non zero, short message contains User-Data Header
 	// Else UDH should be in TLV field MessagePayload
@@ -262,7 +264,7 @@ func (c *ShortMessage) Unmarshal(b *ByteBuffer, udhi bool) (err error) {
 }
 
 // Encoding returns message encoding.
-func (c *ShortMessage) Encoding() data.Encoding {
+func (c *ShortMessage) Encoding() coding.Encoding {
 	return c.enc
 }
 

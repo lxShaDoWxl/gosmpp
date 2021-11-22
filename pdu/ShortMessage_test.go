@@ -1,9 +1,9 @@
 package pdu
 
 import (
+	"github.com/linxGnu/gosmpp/coding"
 	"testing"
 
-	"github.com/linxGnu/gosmpp/data"
 	"github.com/linxGnu/gosmpp/errors"
 
 	"github.com/stretchr/testify/require"
@@ -22,13 +22,13 @@ func (*customEncoder) Decode(data []byte) (string, error) {
 func TestShortMessage(t *testing.T) {
 	t.Run("invalidCoding", func(t *testing.T) {
 		var s ShortMessage
-		require.NotNil(t, s.SetMessageWithEncoding("agjwklgjkwPфngưỡng", data.LATIN1))
+		require.NotNil(t, s.SetMessageWithEncoding("agjwklgjkwPфngưỡng", coding.LATIN1))
 	})
 
 	t.Run("customCoding", func(t *testing.T) {
 		var s ShortMessage
 
-		customCoding := data.NewCustomEncoding(246, &customEncoder{})
+		customCoding := coding.NewCustomEncoding(246, &customEncoder{})
 		err := s.SetMessageDataWithEncoding([]byte{0x61, 0x62, 0x63}, customCoding) // "abc"
 		require.NoError(t, err)
 		require.EqualValues(t, 246, s.Encoding().DataCoding())
@@ -38,7 +38,7 @@ func TestShortMessage(t *testing.T) {
 		require.Equal(t, "abc", m)
 
 		// try to get message string with other encoding
-		m, err = s.GetMessageWithEncoding(data.FromDataCoding(data.UCS2Coding))
+		m, err = s.GetMessageWithEncoding(coding.FromDataCoding(coding.UCS2Coding))
 		require.Nil(t, err)
 		require.NotEqual(t, "abc", m)
 
@@ -51,7 +51,7 @@ func TestShortMessage(t *testing.T) {
 	t.Run("invalidSize", func(t *testing.T) {
 		var s ShortMessage
 		require.Equal(t, errors.ErrShortMessageLengthTooLarge,
-			s.SetMessageWithEncoding("agjwklgjkwPфngưỡngasdfasdfasdfasdagjwklgjkwPфngưỡngasdfasdfasdfasdagjwklgjkwPфngưỡngasdfasdfasdfasdagjwklgjkwPфngưỡngasdfasdfasdfasd", data.UCS2))
+			s.SetMessageWithEncoding("agjwklgjkwPфngưỡngasdfasdfasdfasdagjwklgjkwPфngưỡngasdfasdfasdfasdagjwklgjkwPфngưỡngasdfasdfasdfasdagjwklgjkwPфngưỡngasdfasdfasdfasd", coding.UCS2))
 	})
 
 	t.Run("getMessageWithoutCoding", func(t *testing.T) {
@@ -95,7 +95,7 @@ func TestShortMessage(t *testing.T) {
 	})
 
 	t.Run("marshalWithCoding", func(t *testing.T) {
-		s, err := NewShortMessageWithEncoding("abc", data.GSM7BIT)
+		s, err := NewShortMessageWithEncoding("abc", coding.GSM7BIT)
 		require.NoError(t, err)
 
 		buf := NewBuffer(nil)
@@ -104,7 +104,7 @@ func TestShortMessage(t *testing.T) {
 	})
 
 	t.Run("marshalWithCoding160chars", func(t *testing.T) {
-		s, err := NewShortMessageWithEncoding("abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcab", data.GSM7BIT)
+		s, err := NewShortMessageWithEncoding("abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcab", coding.GSM7BIT)
 		require.NoError(t, err)
 
 		buf := NewBuffer(nil)
@@ -114,7 +114,7 @@ func TestShortMessage(t *testing.T) {
 	})
 
 	t.Run("marshalGSM7WithUDHConcat", func(t *testing.T) {
-		s, err := NewShortMessageWithEncoding("abc", data.GSM7BIT)
+		s, err := NewShortMessageWithEncoding("abc", coding.GSM7BIT)
 		require.NoError(t, err)
 		s.SetUDH(UDH{NewIEConcatMessage(2, 1, 12)})
 
@@ -130,7 +130,7 @@ func TestShortMessage(t *testing.T) {
 
 		// check encoding
 		require.NoError(t, s.Unmarshal(buf, true))
-		require.Equal(t, data.BINARY8BIT2, s.Encoding())
+		require.Equal(t, coding.BINARY8BIT2, s.Encoding())
 
 		// check message
 		messageData, err := s.GetMessageData()
@@ -145,7 +145,7 @@ func TestShortMessage(t *testing.T) {
 
 		// check encoding
 		require.NoError(t, s.Unmarshal(buf, true))
-		require.Equal(t, data.GSM7BIT, s.Encoding())
+		require.Equal(t, coding.GSM7BIT, s.Encoding())
 
 		// check message
 		message, err := s.GetMessageWithEncoding(s.Encoding())
@@ -155,7 +155,7 @@ func TestShortMessage(t *testing.T) {
 
 	t.Run("shortMessageSplitGSM7_169chars", func(t *testing.T) {
 		// over gsm7 chars limit ( 169/160 ), split
-		sm, err := NewLongMessageWithEncoding("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz1234123456789", data.GSM7BIT)
+		sm, err := NewLongMessageWithEncoding("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz1234123456789", coding.GSM7BIT)
 		require.NoError(t, err)
 
 		require.Equal(t, 2, len(sm))
@@ -163,7 +163,7 @@ func TestShortMessage(t *testing.T) {
 
 	t.Run("shortMessageSplitGSM7_160chars", func(t *testing.T) {
 		// over gsm7 chars limit ( 160/160 ), split
-		sm, err := NewLongMessageWithEncoding("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz1234", data.GSM7BIT)
+		sm, err := NewLongMessageWithEncoding("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz1234", coding.GSM7BIT)
 		require.NoError(t, err)
 
 		require.Equal(t, 2, len(sm))
@@ -171,7 +171,7 @@ func TestShortMessage(t *testing.T) {
 
 	t.Run("shortMessageSplitUCS2_89chars", func(t *testing.T) {
 		// over UCS2 chars limit (89/67), split
-		sm, err := NewLongMessageWithEncoding("biggest gift của Christmas là có nhiều big/challenging/meaningful problems để sấp mặt làm", data.UCS2)
+		sm, err := NewLongMessageWithEncoding("biggest gift của Christmas là có nhiều big/challenging/meaningful problems để sấp mặt làm", coding.UCS2)
 		require.NoError(t, err)
 
 		require.Equal(t, 2, len(sm))
@@ -179,7 +179,7 @@ func TestShortMessage(t *testing.T) {
 
 	t.Run("shortMessageSplitUCS2_67chars", func(t *testing.T) {
 		// still within UCS2 chars limit (67/67), not split
-		sm, err := NewLongMessageWithEncoding("biggest gift của Christmas là có nhiều big/challenging/meaningful p", data.UCS2)
+		sm, err := NewLongMessageWithEncoding("biggest gift của Christmas là có nhiều big/challenging/meaningful p", coding.UCS2)
 		require.NoError(t, err)
 
 		require.Equal(t, 1, len(sm))
@@ -187,7 +187,7 @@ func TestShortMessage(t *testing.T) {
 
 	t.Run("shortMessageSplitGSM7_empty", func(t *testing.T) {
 		// over UCS2 chars limit (89/67), split
-		sm, err := NewLongMessageWithEncoding("", data.GSM7BIT)
+		sm, err := NewLongMessageWithEncoding("", coding.GSM7BIT)
 		require.NoError(t, err)
 
 		require.Equal(t, 1, len(sm))
@@ -195,7 +195,7 @@ func TestShortMessage(t *testing.T) {
 
 	t.Run("indempotentMarshal", func(t *testing.T) {
 		// over gsm7 chars limit ( 160/160 ), split
-		multiSM, err := NewLongMessageWithEncoding("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz1234", data.GSM7BIT)
+		multiSM, err := NewLongMessageWithEncoding("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz1234", coding.GSM7BIT)
 		require.NoError(t, err)
 
 		for i := range multiSM {

@@ -1,6 +1,7 @@
 package pdu
 
 import (
+	"github.com/linxGnu/gosmpp/coding"
 	"testing"
 
 	"github.com/linxGnu/gosmpp/data"
@@ -47,7 +48,7 @@ func TestSubmitMulti(t *testing.T) {
 	v.PriorityFlag = 61
 	v.RegisteredDelivery = 83
 
-	v.Message, err = NewShortMessageWithEncoding("nghắ nghiêng nghiễng ngả", data.UCS2)
+	v.Message, err = NewShortMessageWithEncoding("nghắ nghiêng nghiễng ngả", coding.UCS2)
 	require.Nil(t, err)
 	v.Message.message = ""
 

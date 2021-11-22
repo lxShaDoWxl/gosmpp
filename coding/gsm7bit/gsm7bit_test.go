@@ -1,13 +1,11 @@
-package data
+package gsm7bit
 
-// Source code in this file is copied from: https://github.com/fiorix
 import (
 	"encoding/hex"
 	"fmt"
+	"golang.org/x/text/transform"
 	"reflect"
 	"testing"
-
-	"golang.org/x/text/transform"
 )
 
 var validationStringTests = []struct {
@@ -103,7 +101,7 @@ func TestGSM7EncodingString(t *testing.T) {
 	}
 
 	for index, row := range tests {
-		actual := fmt.Sprint(GSM7(row.Packed))
+		actual := fmt.Sprint(NewEncDec(row.Packed))
 		if actual != row.Expected {
 			t.Fatalf("%d: expected '%s' but got '%s'", index, row.Expected, actual)
 		}
@@ -112,7 +110,7 @@ func TestGSM7EncodingString(t *testing.T) {
 
 func TestValidateGSM7String(t *testing.T) {
 	for index, row := range validationStringTests {
-		actual := ValidateGSM7String(row.Text)
+		actual := ValidateString(row.Text)
 		if !reflect.DeepEqual(actual, row.Expected) {
 			t.Fatalf("%2d: actual did not equal expected.\nactual: %s\nexpect: %s", index, string(actual), string(row.Expected))
 		}
@@ -121,7 +119,7 @@ func TestValidateGSM7String(t *testing.T) {
 
 func TestValidateGSM7Buffer(t *testing.T) {
 	for index, row := range validationBufferTests {
-		actual := ValidateGSM7Buffer(row.Buffer)
+		actual := ValidateBuffer(row.Buffer)
 		if !reflect.DeepEqual(actual, row.Expected) {
 			t.Fatalf("%2d: actual did not equal expected.\nactual: %s\nexpect: %s", index, hex.EncodeToString(actual), hex.EncodeToString(row.Expected))
 		}
@@ -129,20 +127,20 @@ func TestValidateGSM7Buffer(t *testing.T) {
 }
 
 func TestPackedEncoder(t *testing.T) {
-	encoder := GSM7(true).NewEncoder()
+	encoder := NewEncDec(true).NewEncoder()
 	for index, row := range packedTests {
 		es, _, err := transform.Bytes(encoder, []byte(row.Text))
 		if err != nil {
 			t.Fatalf("%2d: unexpected error: '%s'", index, err.Error())
 		}
 		if !reflect.DeepEqual(es, row.Buff) {
-			t.Fatalf("%2d: actual did not equal expected.\nactual: %s\nexpect: %s", index, hex.EncodeToString(es), hex.EncodeToString(row.Buff))
+			t.Fatalf("%2d: actual did not equal expected.\nactual: %s\nexpect: %s\ntext: %s", index, hex.EncodeToString(es), hex.EncodeToString(row.Buff),row.Text)
 		}
 	}
 }
 
 func TestUnpackedEncoder(t *testing.T) {
-	encoder := GSM7(false).NewEncoder()
+	encoder := NewEncDec(false).NewEncoder()
 	for index, row := range unpackedTests {
 		es, _, err := transform.Bytes(encoder, []byte(row.Text))
 		if err != nil {
@@ -155,7 +153,7 @@ func TestUnpackedEncoder(t *testing.T) {
 }
 
 func TestPackedDecoder(t *testing.T) {
-	decoder := GSM7(true).NewDecoder()
+	decoder := NewEncDec(true).NewDecoder()
 	for index, row := range packedTests {
 		es, _, err := transform.Bytes(decoder, row.Buff)
 		if err != nil {
@@ -168,7 +166,7 @@ func TestPackedDecoder(t *testing.T) {
 }
 
 func TestUnpackedDecoder(t *testing.T) {
-	encoder := GSM7(false).NewDecoder()
+	encoder := NewEncDec(false).NewDecoder()
 	for index, row := range unpackedTests {
 		es, _, err := transform.Bytes(encoder, row.Buff)
 		if err != nil {
@@ -182,7 +180,7 @@ func TestUnpackedDecoder(t *testing.T) {
 
 func TestInvalidCharacter(t *testing.T) {
 	for index, row := range invalidCharacterTests {
-		encoder := GSM7(row.Packed).NewEncoder()
+		encoder := NewEncDec(row.Packed).NewEncoder()
 		_, _, err := transform.Bytes(encoder, []byte(row.Text))
 		if err == nil {
 			t.Fatalf("%2d: expected error but got no error", index)
@@ -195,7 +193,7 @@ func TestInvalidCharacter(t *testing.T) {
 
 func TestInvalidByte(t *testing.T) {
 	for index, row := range invalidByteTests {
-		decoder := GSM7(row.Packed).NewDecoder()
+		decoder := NewEncDec(row.Packed).NewDecoder()
 		_, _, err := transform.Bytes(decoder, row.Buff)
 		if err == nil {
 			t.Fatalf("%2d: expected error but got no error", index)

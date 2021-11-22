@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/linxGnu/gosmpp/coding"
 	"log"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/linxGnu/gosmpp"
-	"github.com/linxGnu/gosmpp/data"
 	"github.com/linxGnu/gosmpp/pdu"
 )
 
@@ -129,7 +129,7 @@ func newSubmitSM() *pdu.SubmitSM {
 	submitSM := pdu.NewSubmitSM().(*pdu.SubmitSM)
 	submitSM.SourceAddr = srcAddr
 	submitSM.DestAddr = destAddr
-	_ = submitSM.Message.SetMessageWithEncoding("Đừng buồn thế dù ngoài kia vẫn mưa nghiễng rợi tý tỵ", data.UCS2)
+	_ = submitSM.Message.SetMessageWithEncoding("Đừng buồn thế dù ngoài kia vẫn mưa nghiễng rợi tý tỵ", coding.UCS2)
 	submitSM.ProtocolID = 0
 	submitSM.RegisteredDelivery = 1
 	submitSM.ReplaceIfPresentFlag = 0

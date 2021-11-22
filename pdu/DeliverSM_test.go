@@ -1,6 +1,7 @@
 package pdu
 
 import (
+	"github.com/linxGnu/gosmpp/coding"
 	"testing"
 
 	"github.com/linxGnu/gosmpp/data"
@@ -30,7 +31,7 @@ func TestDeliverSM(t *testing.T) {
 	v.ProtocolID = 99
 	v.PriorityFlag = 61
 	v.RegisteredDelivery = 83
-	_ = v.Message.SetMessageWithEncoding("nghắ nghiêng nghiễng ngả", data.UCS2)
+	_ = v.Message.SetMessageWithEncoding("nghắ nghiêng nghiễng ngả", coding.UCS2)
 	v.Message.message = ""
 
 	validate(t,

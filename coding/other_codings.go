@@ -1,4 +1,4 @@
-package data
+package coding
 
 import (
 	"golang.org/x/text/encoding/unicode"
