@@ -1,25 +1,35 @@
 package gosmpp
 
 import (
-	"sync/atomic"
-
+	"context"
+	"github.com/go-errors/errors"
 	"github.com/linxGnu/gosmpp/pdu"
+	"golang.org/x/time/rate"
+	"sync"
+	"sync/atomic"
+	"time"
 )
 
 type transceivable struct {
 	settings Settings
 
-	conn *Connection
-	in   *receivable
-	out  *transmittable
-
-	aliveState int32
+	conn        *Connection
+	in          *receivable
+	out         *transmittable
+	pending     map[int32]func(pdu.PDU)
+	rateLimiter *rate.Limiter
+	ctx         context.Context
+	mutex       *sync.Mutex
+	aliveState  int32
 }
 
 func newTransceivable(conn *Connection, settings Settings) *transceivable {
 	t := &transceivable{
-		settings: settings,
-		conn:     conn,
+		settings:    settings,
+		conn:        conn,
+		rateLimiter: settings.RateLimiter,
+		ctx:         context.Background(),
+		mutex:       &sync.Mutex{},
 	}
 
 	t.out = newTransmittable(conn, Settings{
@@ -48,7 +58,7 @@ func newTransceivable(conn *Connection, settings Settings) *transceivable {
 	t.in = newReceivable(conn, Settings{
 		ReadTimeout: settings.ReadTimeout,
 
-		OnPDU: settings.OnPDU,
+		OnPDU: t.onPDU(settings.OnPDU),
 
 		OnReceivingError: settings.OnReceivingError,
 
@@ -100,8 +110,63 @@ func (t *transceivable) Close() (err error) {
 	}
 	return
 }
+func (t *transceivable) onPDU(cl PDUCallback) PDUCallback {
+	return func(p pdu.PDU, responded bool) {
+		t.mutex.Lock()
+		defer t.mutex.Unlock()
+		if callback, ok := t.pending[p.GetSequenceNumber()]; ok {
+			callback(p)
+		} else {
+			cl(p, responded)
+		}
+	}
+}
 
 // Submit a PDU.
 func (t *transceivable) Submit(p pdu.PDU) error {
+	err := t.rateLimit(t.ctx)
+	if err != nil {
+		return err
+	}
 	return t.out.Submit(p)
+}
+
+// SubmitResp a PDU and response PDU.
+func (t *transceivable) SubmitResp(ctx context.Context, p pdu.PDU) (resp pdu.PDU, err error) {
+	if !p.CanResponse() {
+		return nil, errors.New("Not response PDU")
+	}
+	err = t.rateLimit(ctx)
+	if err != nil {
+		return
+	}
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	sequence := p.GetSequenceNumber()
+	returns := make(chan pdu.PDU, 1)
+	t.pending[sequence] = func(resp pdu.PDU) { returns <- resp }
+
+	defer delete(t.pending, sequence)
+
+	err = t.out.Submit(p)
+	if err != nil {
+		return
+	}
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+	case resp = <-returns:
+	}
+	return
+}
+
+func (t *transceivable) rateLimit(ctx context.Context) error {
+	if t.rateLimiter != nil {
+		ctxLimiter, cancelLimiter := context.WithTimeout(ctx, time.Minute)
+		defer cancelLimiter()
+		if err := t.rateLimiter.Wait(ctxLimiter); err != nil {
+			return errors.Errorf("SMPP limiter failed: %v", err)
+		}
+	}
+	return nil
 }

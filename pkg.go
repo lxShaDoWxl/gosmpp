@@ -1,6 +1,8 @@
 package gosmpp
 
 import (
+	"context"
+	"golang.org/x/time/rate"
 	"io"
 	"time"
 
@@ -10,6 +12,7 @@ import (
 // Transceiver interface.
 type Transceiver interface {
 	io.Closer
+	SubmitResp(context.Context, pdu.PDU) (pdu.PDU, error)
 	Submit(pdu.PDU) error
 	SystemID() string
 }
@@ -63,6 +66,8 @@ type Settings struct {
 
 	// OnClosed notifies `closed` event due to State.
 	OnClosed ClosedCallback
+
+	RateLimiter *rate.Limiter
 
 	response func(pdu.PDU)
 }

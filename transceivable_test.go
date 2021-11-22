@@ -1,6 +1,7 @@
 package gosmpp
 
 import (
+	"github.com/linxGnu/gosmpp/coding"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -37,7 +38,7 @@ func handlePDU(t *testing.T) func(pdu.PDU, bool) {
 			require.True(t, responded)
 			require.EqualValues(t, data.ESME_ROK, pd.CommandStatus)
 
-			_mess, err := pd.Message.GetMessageWithEncoding(data.UCS2)
+			_mess, err := pd.Message.GetMessageWithEncoding(coding.UCS2)
 			assert.Nil(t, err)
 			if mess == _mess {
 				atomic.AddInt32(&countDeliverSM, 1)
@@ -119,7 +120,7 @@ func newSubmitSM(systemID string) *pdu.SubmitSM {
 	submitSM := pdu.NewSubmitSM().(*pdu.SubmitSM)
 	submitSM.SourceAddr = srcAddr
 	submitSM.DestAddr = destAddr
-	_ = submitSM.Message.SetMessageWithEncoding(mess, data.UCS2)
+	_ = submitSM.Message.SetMessageWithEncoding(mess, coding.UCS2)
 	submitSM.ProtocolID = 0
 	submitSM.RegisteredDelivery = 1
 	submitSM.ReplaceIfPresentFlag = 0
