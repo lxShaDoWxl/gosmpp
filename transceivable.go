@@ -30,6 +30,7 @@ func newTransceivable(conn *Connection, settings Settings) *transceivable {
 		rateLimiter: settings.RateLimiter,
 		ctx:         context.Background(),
 		mutex:       &sync.Mutex{},
+		pending:     make(map[int32]func(pdu.PDU)),
 	}
 
 	t.out = newTransmittable(conn, Settings{
