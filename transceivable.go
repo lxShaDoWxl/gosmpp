@@ -5,7 +5,6 @@ import (
 	"github.com/go-errors/errors"
 	"github.com/linxGnu/gosmpp/pdu"
 	"golang.org/x/time/rate"
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -19,7 +18,6 @@ type transceivable struct {
 	pending     map[int32]func(pdu.PDU)
 	rateLimiter *rate.Limiter
 	ctx         context.Context
-	mutex       *sync.Mutex
 	aliveState  int32
 }
 
@@ -29,7 +27,6 @@ func newTransceivable(conn *Connection, settings Settings) *transceivable {
 		conn:        conn,
 		rateLimiter: settings.RateLimiter,
 		ctx:         context.Background(),
-		mutex:       &sync.Mutex{},
 		pending:     make(map[int32]func(pdu.PDU)),
 	}
 
@@ -113,8 +110,6 @@ func (t *transceivable) Close() (err error) {
 }
 func (t *transceivable) onPDU(cl PDUCallback) PDUCallback {
 	return func(p pdu.PDU, responded bool) {
-		t.mutex.Lock()
-		defer t.mutex.Unlock()
 		if callback, ok := t.pending[p.GetSequenceNumber()]; ok {
 			callback(p)
 		} else {
@@ -141,8 +136,6 @@ func (t *transceivable) SubmitResp(ctx context.Context, p pdu.PDU) (resp pdu.PDU
 	if err != nil {
 		return
 	}
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
 	sequence := p.GetSequenceNumber()
 	returns := make(chan pdu.PDU, 1)
 	t.pending[sequence] = func(resp pdu.PDU) { returns <- resp }
