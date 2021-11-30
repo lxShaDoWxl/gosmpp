@@ -111,9 +111,9 @@ func (t *transceivable) Close() (err error) {
 func (t *transceivable) onPDU(cl PDUCallback) PDUCallback {
 	return func(p pdu.PDU, responded bool) {
 		if callback, ok := t.pending[p.GetSequenceNumber()]; ok {
-			callback(p)
+			go callback(p)
 		} else {
-			cl(p, responded)
+			go cl(p, responded)
 		}
 	}
 }
