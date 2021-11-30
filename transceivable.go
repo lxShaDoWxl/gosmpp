@@ -113,7 +113,16 @@ func (t *transceivable) onPDU(cl PDUCallback) PDUCallback {
 		if callback, ok := t.pending[p.GetSequenceNumber()]; ok {
 			go callback(p)
 		} else {
-			go cl(p, responded)
+			if cl == nil {
+				if p.CanResponse() {
+					go func() {
+						_ = t.Submit(p.GetResponse())
+					}()
+				}
+			} else {
+				go cl(p, responded)
+			}
+
 		}
 	}
 }
