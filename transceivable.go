@@ -18,26 +18,28 @@ type transceivable struct {
 	pending     map[int32]func(pdu.PDU)
 	rateLimiter *rate.Limiter
 	ctx         context.Context
+	ctxCancel   context.CancelFunc
 	aliveState  int32
 }
 
 func newTransceivable(conn *Connection, settings Settings) *transceivable {
+	ctx, cancel := context.WithCancel(context.Background())
 	t := &transceivable{
 		settings:    settings,
 		conn:        conn,
 		rateLimiter: settings.RateLimiter,
-		ctx:         context.Background(),
+		ctx:         ctx,
+		ctxCancel:   cancel,
 		pending:     make(map[int32]func(pdu.PDU)),
 	}
 
 	t.out = newTransmittable(conn, Settings{
 		WriteTimeout: settings.WriteTimeout,
 
-		EnquireLink: settings.EnquireLink,
-
 		OnSubmitError: settings.OnSubmitError,
 
 		OnClosed: func(state State) {
+			defer cancel()
 			switch state {
 			case ExplicitClosing:
 				return
@@ -61,6 +63,7 @@ func newTransceivable(conn *Connection, settings Settings) *transceivable {
 		OnReceivingError: settings.OnReceivingError,
 
 		OnClosed: func(state State) {
+			defer cancel()
 			switch state {
 			case ExplicitClosing:
 				return
@@ -73,6 +76,7 @@ func newTransceivable(conn *Connection, settings Settings) *transceivable {
 					t.settings.OnClosed(state)
 				}
 			}
+
 		},
 
 		response: func(p pdu.PDU) {
@@ -80,10 +84,41 @@ func newTransceivable(conn *Connection, settings Settings) *transceivable {
 		},
 	})
 
+	t.start()
+	return t
+}
+
+func (t *transceivable) start() {
 	t.out.start()
 	t.in.start()
+	if t.settings.EnquireLink > 0 {
+		go t.loopWithEnquireLink()
+	}
+}
+func (t *transceivable) loopWithEnquireLink() {
+	ticker := time.NewTicker(t.settings.EnquireLink)
+	defer ticker.Stop()
+	sendEnquireLink := func() {
+		eqp := pdu.NewEnquireLink()
+		ctxSubmit, cancel := context.WithTimeout(t.ctx, time.Minute*5)
+		defer cancel()
 
-	return t
+		_, err := t.SubmitResp(ctxSubmit, eqp)
+		if err != nil {
+			t.settings.OnSubmitError(eqp, err)
+			_ = t.Close()
+			return
+		}
+	}
+	for {
+		select {
+		case <-ticker.C:
+			sendEnquireLink()
+
+		case <-t.ctx.Done():
+			return
+		}
+	}
 }
 
 // SystemID returns tagged SystemID which is attached with bind_resp from SMSC.
@@ -93,6 +128,7 @@ func (t *transceivable) SystemID() string {
 
 // Close transceiver and stop underlying daemons.
 func (t *transceivable) Close() (err error) {
+	defer t.ctxCancel()
 	if atomic.CompareAndSwapInt32(&t.aliveState, Alive, Closed) {
 		// closing input and output
 		_ = t.out.close(StoppingProcessOnly)
