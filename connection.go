@@ -3,6 +3,7 @@ package gosmpp
 import (
 	"bufio"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/linxGnu/gosmpp/pdu"
@@ -13,6 +14,7 @@ type Connection struct {
 	systemID string
 	conn     net.Conn
 	reader   *bufio.Reader
+	mutex    *sync.Mutex
 }
 
 // NewConnection returns a Connection.
@@ -20,6 +22,7 @@ func NewConnection(conn net.Conn) (c *Connection) {
 	c = &Connection{
 		conn:   conn,
 		reader: bufio.NewReaderSize(conn, 128<<10),
+		mutex:  &sync.Mutex{},
 	}
 	return
 }
@@ -42,6 +45,8 @@ func (c *Connection) Write(b []byte) (n int, err error) {
 
 // WritePDU data to the connection.
 func (c *Connection) WritePDU(p pdu.PDU) (n int, err error) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	buf := pdu.NewBuffer(make([]byte, 0, 64))
 	p.Marshal(buf)
 	n, err = c.conn.Write(buf.Bytes())
