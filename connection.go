@@ -1,7 +1,6 @@
 package gosmpp
 
 import (
-	"bufio"
 	"net"
 	"sync"
 	"time"
@@ -13,16 +12,14 @@ import (
 type Connection struct {
 	systemID string
 	conn     net.Conn
-	reader   *bufio.Reader
 	mutex    *sync.Mutex
 }
 
 // NewConnection returns a Connection.
 func NewConnection(conn net.Conn) (c *Connection) {
 	c = &Connection{
-		conn:   conn,
-		reader: bufio.NewReaderSize(conn, 128<<10),
-		mutex:  &sync.Mutex{},
+		conn:  conn,
+		mutex: &sync.Mutex{},
 	}
 	return
 }
@@ -31,7 +28,7 @@ func NewConnection(conn net.Conn) (c *Connection) {
 // Read can be made to time out and return an Error with Timeout() == true
 // after a fixed time limit; see SetDeadline and SetReadDeadline.
 func (c *Connection) Read(b []byte) (n int, err error) {
-	n, err = c.reader.Read(b)
+	n, err = c.conn.Read(b)
 	return
 }
 
