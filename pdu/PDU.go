@@ -3,8 +3,9 @@ package pdu
 import (
 	"io"
 
+	"github.com/go-errors/errors"
 	"github.com/linxGnu/gosmpp/data"
-	"github.com/linxGnu/gosmpp/errors"
+	constErrors "github.com/linxGnu/gosmpp/errors"
 )
 
 // PDU represents PDU interface.
@@ -79,7 +80,7 @@ func (c *base) unmarshal(b *ByteBuffer, bodyReader func(*ByteBuffer) error) (err
 			// got - total read byte(s)
 			got := fullLen - b.Len()
 			if got > cmdLength {
-				err = errors.ErrInvalidPDU
+				err = constErrors.ErrInvalidPDU
 				return
 			}
 
@@ -96,7 +97,7 @@ func (c *base) unmarshal(b *ByteBuffer, bodyReader func(*ByteBuffer) error) (err
 
 			// validate again
 			if b.Len() != fullLen-cmdLength {
-				err = errors.ErrInvalidPDU
+				err = constErrors.ErrInvalidPDU
 			}
 		}
 	}
@@ -159,12 +160,13 @@ func Parse(r io.Reader) (pdu PDU, err error) {
 	var headerBytes [16]byte
 
 	if _, err = io.ReadFull(r, headerBytes[:]); err != nil {
+		err = errors.Wrap(err, 0)
 		return
 	}
 
 	header := ParseHeader(headerBytes)
 	if header.CommandLength < 16 || header.CommandLength > data.MAX_PDU_LEN {
-		err = errors.ErrInvalidPDU
+		err = errors.Wrap(constErrors.ErrInvalidPDU, 0)
 		return
 	}
 
@@ -172,6 +174,7 @@ func Parse(r io.Reader) (pdu PDU, err error) {
 	bodyBytes := make([]byte, header.CommandLength-16)
 	if len(bodyBytes) > 0 {
 		if _, err = io.ReadFull(r, bodyBytes); err != nil {
+			err = errors.Wrap(err, 0)
 			return
 		}
 	}
@@ -185,6 +188,8 @@ func Parse(r io.Reader) (pdu PDU, err error) {
 		}
 		err = pdu.Unmarshal(buf)
 	}
-
+	if err != nil {
+		err = errors.Wrap(err, 0)
+	}
 	return
 }
