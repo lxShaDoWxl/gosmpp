@@ -182,19 +182,22 @@ func (t *transceivable) SubmitResp(ctx context.Context, p pdu.PDU) (resp pdu.PDU
 	if !p.CanResponse() {
 		return nil, errors.New("Not response PDU")
 	}
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-	err = t.rateLimit(ctx)
-	if err != nil {
-		return
-	}
 	sequence := p.GetSequenceNumber()
 	returns := make(chan pdu.PDU, 1)
-	t.pending[sequence] = func(resp pdu.PDU) { returns <- resp }
 
-	defer delete(t.pending, sequence)
+	func() {
+		t.mutex.Lock()
+		defer t.mutex.Unlock()
+		t.pending[sequence] = func(resp pdu.PDU) { returns <- resp }
+	}()
 
-	err = t.out.Submit(p)
+	defer func() {
+		t.mutex.Lock()
+		defer t.mutex.Unlock()
+		delete(t.pending, sequence)
+	}()
+
+	err = t.Submit(p)
 	if err != nil {
 		return
 	}
