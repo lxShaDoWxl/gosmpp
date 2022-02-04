@@ -3,8 +3,8 @@ package pdu
 import (
 	"testing"
 
+	libErrors "github.com/go-errors/errors"
 	"github.com/linxGnu/gosmpp/errors"
-
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,11 +24,11 @@ func TestParsePDU(t *testing.T) {
 	t.Run("invalidCmdLength", func(t *testing.T) {
 		buf := NewBuffer(fromHex("0000000f800000060000000000000001"))
 		_, err := Parse(buf)
-		require.Equal(t, errors.ErrInvalidPDU, err)
+		require.True(t, libErrors.Is(errors.ErrInvalidPDU, err))
 
 		buf = NewBuffer(fromHex("3800000f800000060000000000000001"))
 		_, err = Parse(buf)
-		require.Equal(t, errors.ErrInvalidPDU, err)
+		require.True(t, libErrors.Is(errors.ErrInvalidPDU, err))
 	})
 
 	t.Run("invalidBody", func(t *testing.T) {
